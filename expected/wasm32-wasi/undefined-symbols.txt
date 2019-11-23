@@ -12,6 +12,7 @@ __getf2
 __gttf2
 __letf2
 __lttf2
+__main_argc_argv
 __netf2
 __stack_pointer
 __subtf3
@@ -62,4 +63,3 @@ __wasi_sock_recv
 __wasi_sock_send
 __wasi_sock_shutdown
 __wasm_call_ctors
-main

@@ -160,7 +160,6 @@ __ofl_lock
 __ofl_unlock
 __optpos
 __optreset
-__original_main
 __overflow
 __p1evll
 __pio2_hi
@@ -738,6 +737,7 @@ lroundl
 lsearch
 lseek
 lstat
+main
 malloc
 malloc_usable_size
 mblen

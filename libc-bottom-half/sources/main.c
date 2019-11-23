@@ -4,13 +4,13 @@
 #include <sysexits.h>
 
 // The user's `main` function, expecting arguments.
-int main(int argc, char *argv[]);
+int __main_argc_argv(int argc, char *argv[]);
 
-// If the user's `main` function expects arguments, the compiler won't emit
-// an `__original_main` function so this version will get linked in, which
-// initializes the argument data and calls `main`.
-__attribute__((weak))
-int __original_main(void) {
+// If the user's `main` function expects arguments, the compiler will rename
+// it to `__main_argc_argv`, and this version will get linked in, which
+// initializes the argument data and calls `__main_argc_argv`.
+__attribute__((weak, nodebug))
+int main(void) {
     __wasi_errno_t err;
 
     // Get the sizes of the arrays we'll have to create to copy in the args.
@@ -50,6 +50,6 @@ int __original_main(void) {
         _Exit(EX_OSERR);
     }
 
-    // Call main with the arguments!
-    return main(argc, argv);
+    // Call `__main_argc_argv` with the arguments!
+    return __main_argc_argv(argc, argv);
 }
