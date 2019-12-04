@@ -12,12 +12,14 @@ void _Exit(int) __attribute__((noreturn));
 __wasi_errno_t __wasilibc_populate_libpreopen(void) __attribute__((weak));
 
 void _start(void) {
+#if 0
     // Record the preopened resources, if needed.
     if (&__wasilibc_populate_libpreopen != NULL &&
         __wasilibc_populate_libpreopen() != __WASI_ERRNO_SUCCESS)
     {
         _Exit(EX_OSERR);
     }
+#endif
 
     // Fill in the environment from WASI syscalls, if needed.
     if (&__wasilibc_populate_environ != NULL &&
@@ -35,8 +37,10 @@ void _start(void) {
     // two-argument `main`.
     int r = __original_main();
 
+#if 0
     // Call atexit functions, destructors, stdio cleanup, etc.
     __prepare_for_exit();
+#endif
 
     // If main exited successfully, just return, otherwise call _Exit.
     if (r != 0) {
