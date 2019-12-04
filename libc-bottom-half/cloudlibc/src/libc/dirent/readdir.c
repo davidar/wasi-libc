@@ -45,7 +45,24 @@ struct dirent *readdir(DIR *dirp) {
       // End-of-file.
       if (dirp->buffer_used < dirp->buffer_size)
         return NULL;
-      goto read_entries;
+      // Discard data currently stored in the input buffer.
+      dirp->buffer_used = dirp->buffer_processed = dirp->buffer_size;
+
+      // Load more directory entries and continue.
+      __wasi_errno_t error =
+#ifdef __wasilibc_unmodified_upstream
+          __wasi_file_readdir(dirp->fd, dirp->buffer, dirp->buffer_size,
+#else
+          // TODO: Remove the cast on `dirp->buffer` once the witx is updated with char8 support.
+          __wasi_fd_readdir(dirp->fd, (uint8_t *)dirp->buffer, dirp->buffer_size,
+#endif
+                                    dirp->cookie, &dirp->buffer_used);
+      if (error != 0) {
+        errno = error;
+        return NULL;
+      }
+      dirp->buffer_processed = 0;
+      continue;
     }
     __wasi_dirent_t entry;
     memcpy(&entry, dirp->buffer + dirp->buffer_processed, sizeof(entry));
@@ -62,7 +79,24 @@ struct dirent *readdir(DIR *dirp) {
     // enough to fit at least this single entry.
     if (buffer_left < entry_size) {
       GROW(dirp->buffer, dirp->buffer_size, entry_size);
-      goto read_entries;
+      // Discard data currently stored in the input buffer.
+      dirp->buffer_used = dirp->buffer_processed = dirp->buffer_size;
+
+      // Load more directory entries and continue.
+      __wasi_errno_t error =
+#ifdef __wasilibc_unmodified_upstream
+          __wasi_file_readdir(dirp->fd, dirp->buffer, dirp->buffer_size,
+#else
+          // TODO: Remove the cast on `dirp->buffer` once the witx is updated with char8 support.
+          __wasi_fd_readdir(dirp->fd, (uint8_t *)dirp->buffer, dirp->buffer_size,
+#endif
+                                    dirp->cookie, &dirp->buffer_used);
+      if (error != 0) {
+        errno = error;
+        return NULL;
+      }
+      dirp->buffer_processed = 0;
+      continue;
     }
 
     // Skip entries having null bytes in the filename.
@@ -84,24 +118,5 @@ struct dirent *readdir(DIR *dirp) {
     dirp->cookie = entry.d_next;
     dirp->buffer_processed += entry_size;
     return dirent;
-
-  read_entries:
-    // Discard data currently stored in the input buffer.
-    dirp->buffer_used = dirp->buffer_processed = dirp->buffer_size;
-
-    // Load more directory entries and continue.
-    __wasi_errno_t error =
-#ifdef __wasilibc_unmodified_upstream
-        __wasi_file_readdir(dirp->fd, dirp->buffer, dirp->buffer_size,
-#else
-        // TODO: Remove the cast on `dirp->buffer` once the witx is updated with char8 support.
-        __wasi_fd_readdir(dirp->fd, (uint8_t *)dirp->buffer, dirp->buffer_size,
-#endif
-                                  dirp->cookie, &dirp->buffer_used);
-    if (error != 0) {
-      errno = error;
-      return NULL;
-    }
-    dirp->buffer_processed = 0;
   }
 }

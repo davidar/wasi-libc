@@ -1491,7 +1491,10 @@ DLMALLOC_EXPORT int mspace_mallopt(int, int);
 #endif /* LACKS_FCNTL_H */
 #endif /* HAVE_MMAP */
 #ifndef LACKS_UNISTD_H
-#include <unistd.h>     /* for sbrk, sysconf */
+#include <stdint.h>
+#include <__macro_PAGESIZE.h>
+#define malloc_getpagesize PAGESIZE
+void *sbrk(intptr_t increment) __attribute__((__warn_unused_result__));
 #else /* LACKS_UNISTD_H */
 #if !defined(__FreeBSD__) && !defined(__OpenBSD__) && !defined(__NetBSD__)
 extern void*     sbrk(ptrdiff_t);

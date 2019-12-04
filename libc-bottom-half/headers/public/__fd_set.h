@@ -60,7 +60,7 @@ static __inline void FD_COPY(const fd_set *__restrict __from,
                              fd_set *__restrict __to) {
     size_t __n = __from->__nfds;
     __to->__nfds = __n;
-    __builtin_memcpy(__to->__fds, __from->__fds, __n * sizeof(int));
+    memcpy(__to->__fds, __from->__fds, __n * sizeof(int));
 }
 
 #define FD_CLR(fd, set)   (FD_CLR((fd), (set)))

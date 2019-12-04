@@ -64,8 +64,8 @@ static inline bool timespec_to_timestamp_exact(
     return false;
 
   // Make sure our timestamp does not overflow.
-  return !mul_overflow(timespec->tv_sec, NSEC_PER_SEC, timestamp) &&
-         !add_overflow(*timestamp, timespec->tv_nsec, timestamp);
+  return !__builtin_umull_overflow(timespec->tv_sec, NSEC_PER_SEC, timestamp) &&
+         !__builtin_uaddl_overflow(*timestamp, timespec->tv_nsec, timestamp);
 }
 
 static inline bool timespec_to_timestamp_clamp(
@@ -77,8 +77,8 @@ static inline bool timespec_to_timestamp_clamp(
   if (timespec->tv_sec < 0) {
     // Timestamps before the Epoch are not supported.
     *timestamp = 0;
-  } else if (mul_overflow(timespec->tv_sec, NSEC_PER_SEC, timestamp) ||
-             add_overflow(*timestamp, timespec->tv_nsec, timestamp)) {
+  } else if (__builtin_umull_overflow(timespec->tv_sec, NSEC_PER_SEC, timestamp) ||
+             __builtin_uaddl_overflow(*timestamp, timespec->tv_nsec, timestamp)) {
     // Make sure our timestamp does not overflow.
     *timestamp = NUMERIC_MAX(__wasi_timestamp_t);
   }

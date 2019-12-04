@@ -56,7 +56,20 @@ int scandirat(int dirfd, const char *dir, struct dirent ***namelist,
       // End-of-file.
       if (buffer_used < buffer_size)
         break;
-      goto read_entries;
+      // Load more directory entries and continue.
+#ifdef __wasilibc_unmodified_upstream
+      __wasi_errno_t error = __wasi_file_readdir(fd, buffer, buffer_size,
+#else
+      // TODO: Remove the cast on `buffer` once the witx is updated with char8 support.
+      __wasi_errno_t error = __wasi_fd_readdir(fd, (uint8_t *)buffer, buffer_size,
+#endif
+                                                         cookie, &buffer_used);
+      if (error != 0) {
+        errno = error;
+        goto bad;
+      }
+      buffer_processed = 0;
+      continue;
     }
     __wasi_dirent_t entry;
     memcpy(&entry, buffer + buffer_processed, sizeof(entry));
@@ -78,7 +91,20 @@ int scandirat(int dirfd, const char *dir, struct dirent ***namelist,
       if (new_buffer == NULL)
         goto bad;
       buffer = new_buffer;
-      goto read_entries;
+      // Load more directory entries and continue.
+#ifdef __wasilibc_unmodified_upstream
+      __wasi_errno_t error = __wasi_file_readdir(fd, buffer, buffer_size,
+#else
+      // TODO: Remove the cast on `buffer` once the witx is updated with char8 support.
+      __wasi_errno_t error = __wasi_fd_readdir(fd, (uint8_t *)buffer, buffer_size,
+#endif
+                                                         cookie, &buffer_used);
+      if (error != 0) {
+        errno = error;
+        goto bad;
+      }
+      buffer_processed = 0;
+      continue;
     }
 
     // Skip entries having null bytes in the filename.
@@ -116,21 +142,6 @@ int scandirat(int dirfd, const char *dir, struct dirent ***namelist,
       free(dirent);
     }
     continue;
-
-  read_entries:;
-    // Load more directory entries and continue.
-#ifdef __wasilibc_unmodified_upstream
-    __wasi_errno_t error = __wasi_file_readdir(fd, buffer, buffer_size,
-#else
-    // TODO: Remove the cast on `buffer` once the witx is updated with char8 support.
-    __wasi_errno_t error = __wasi_fd_readdir(fd, (uint8_t *)buffer, buffer_size,
-#endif
-                                                       cookie, &buffer_used);
-    if (error != 0) {
-      errno = error;
-      goto bad;
-    }
-    buffer_processed = 0;
   }
 
   // Sort results and return them.

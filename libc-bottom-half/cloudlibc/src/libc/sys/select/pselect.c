@@ -39,7 +39,7 @@ int pselect(int nfds, fd_set *restrict readfds, fd_set *restrict writefds,
 
   // Determine the maximum number of events.
   size_t maxevents = readfds->__nfds + writefds->__nfds + 1;
-  __wasi_subscription_t subscriptions[maxevents];
+  __wasi_subscription_t *subscriptions = calloc(maxevents, sizeof __wasi_subscription_t);
   size_t nevents = 0;
 
   // Convert the readfds set.
@@ -94,13 +94,14 @@ int pselect(int nfds, fd_set *restrict readfds, fd_set *restrict writefds,
 #else
     if (!timespec_to_timestamp_clamp(timeout, &subscription->u.clock.timeout)) {
 #endif
+      free(subscriptions);
       errno = EINVAL;
       return -1;
     }
   }
 
   // Execute poll().
-  __wasi_event_t events[nevents];
+  __wasi_event_t *events = calloc(nevents, sizeof __wasi_event_t);
   __wasi_errno_t error =
 #ifdef __wasilibc_unmodified_upstream
       __wasi_poll(subscriptions, events, nevents, &nevents);
@@ -108,6 +109,8 @@ int pselect(int nfds, fd_set *restrict readfds, fd_set *restrict writefds,
       __wasi_poll_oneoff(subscriptions, events, nevents, &nevents);
 #endif
   if (error != 0) {
+    free(subscriptions);
+    free(events);
     errno = error;
     return -1;
   }
@@ -122,6 +125,8 @@ int pselect(int nfds, fd_set *restrict readfds, fd_set *restrict writefds,
 #else
         event->error == __WASI_ERRNO_BADF) {
 #endif
+      free(subscriptions);
+      free(events);
       errno = EBADF;
       return -1;
     }
@@ -138,5 +143,7 @@ int pselect(int nfds, fd_set *restrict readfds, fd_set *restrict writefds,
       writefds->__fds[writefds->__nfds++] = event->userdata;
     }
   }
+  free(subscriptions);
+  free(events);
   return readfds->__nfds + writefds->__nfds;
 }

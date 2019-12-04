@@ -48,7 +48,7 @@ extern "C" {
 #define FP_FAST_FMAL 1
 #endif
 
-#ifdef __wasilibc_unmodified_upstream /* Use the compiler's definition of the fpclassify-like operations */
+#if defined __wasilibc_unmodified_upstream || defined __TINYC__ /* Use the compiler's definition of the fpclassify-like operations */
 int __fpclassify(double);
 int __fpclassifyf(float);
 int __fpclassifyl(long double);

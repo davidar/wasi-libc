@@ -10,7 +10,7 @@
 int poll(struct pollfd *fds, size_t nfds, int timeout) {
   // Construct events for poll().
   size_t maxevents = 2 * nfds + 1;
-  __wasi_subscription_t subscriptions[maxevents];
+  __wasi_subscription_t *subscriptions = calloc(maxevents, sizeof __wasi_subscription_t);
   size_t nevents = 0;
   for (size_t i = 0; i < nfds; ++i) {
     struct pollfd *pollfd = &fds[i];
@@ -50,6 +50,7 @@ int poll(struct pollfd *fds, size_t nfds, int timeout) {
     // we cannot detect POLLERR, POLLHUP and POLLNVAL if POLLRDNORM and
     // POLLWRNORM are not specified. Disallow this for now.
     if (!created_events) {
+      free(subscriptions);
       errno = ENOSYS;
       return -1;
     }
@@ -71,7 +72,7 @@ int poll(struct pollfd *fds, size_t nfds, int timeout) {
   }
 
   // Execute poll().
-  __wasi_event_t events[nevents];
+  __wasi_event_t *events = calloc(nevents, sizeof __wasi_event_t);
   __wasi_errno_t error =
 #ifdef __wasilibc_unmodified_upstream
       __wasi_poll(subscriptions, events, nevents, &nevents);
@@ -79,6 +80,8 @@ int poll(struct pollfd *fds, size_t nfds, int timeout) {
       __wasi_poll_oneoff(subscriptions, events, nevents, &nevents);
 #endif
   if (error != 0) {
+    free(subscriptions);
+    free(events);
     errno = error;
     return -1;
   }
@@ -136,5 +139,7 @@ int poll(struct pollfd *fds, size_t nfds, int timeout) {
     if (pollfd->revents != 0)
       ++retval;
   }
+  free(subscriptions);
+  free(events);
   return retval;
 }
