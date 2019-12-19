@@ -49,6 +49,7 @@ LIBC_BOTTOM_HALF_SOURCES = $(LIBC_BOTTOM_HALF_DIR)/sources
 LIBC_BOTTOM_HALF_ALL_SOURCES = \
     $(shell find $(LIBC_BOTTOM_HALF_CLOUDLIBC_SRC) -name \*.c) \
     $(LIBC_BOTTOM_HALF_LIBPREOPEN_DIR)/libpreopen.c \
+    $(LIBC_BOTTOM_HALF_CRT_SOURCES) \
     $(shell find $(LIBC_BOTTOM_HALF_SOURCES) -name \*.c)
 LIBWASI_EMULATED_MMAN_SOURCES = \
     $(shell find $(LIBC_BOTTOM_HALF_DIR)/mman -name \*.c)
@@ -186,23 +187,23 @@ SYSROOT_INC = $(SYSROOT)/include
 SYSROOT_SHARE = $(SYSROOT)/share/$(MULTIARCH_TRIPLE)
 
 # Set the target.
-override WASM_CFLAGS += --target=$(TARGET_TRIPLE)
+#override WASM_CFLAGS += --target=$(TARGET_TRIPLE)
 # WebAssembly floating-point match doesn't trap.
 # TODO: Add -fno-signaling-nans when the compiler supports it.
-override WASM_CFLAGS += -fno-trapping-math
+#override WASM_CFLAGS += -fno-trapping-math
 
 # Configure support for threads.
 ifeq ($(THREAD_MODEL), single)
-override WASM_CFLAGS += -mthread-model single
+#override WASM_CFLAGS += -mthread-model single
 endif
 ifeq ($(THREAD_MODEL), posix)
-override WASM_CFLAGS += -mthread-model posix -pthread
+#override WASM_CFLAGS += -mthread-model posix -pthread
 endif
 
 # Set the sysroot.
-override WASM_CFLAGS += --sysroot="$(SYSROOT)"
+override WASM_CFLAGS += -isystem "$(SYSROOT_INC)"
 
-objs = $(patsubst $(CURDIR)/%.c,$(OBJDIR)/%.o,$(1))
+objs = $(patsubst $(CURDIR)/%.c,$(OBJDIR)/%.c,$(1))
 override BASICS_OBJS = $(call objs,$(BASICS_SOURCES))
 override DLMALLOC_OBJS = $(call objs,$(DLMALLOC_SOURCES))
 override LIBC_BOTTOM_HALF_ALL_OBJS = $(call objs,$(LIBC_BOTTOM_HALF_ALL_SOURCES))
@@ -212,22 +213,22 @@ ifeq ($(BUILD_DLMALLOC),yes)
 override LIBC_OBJS += $(DLMALLOC_OBJS)
 endif
 ifeq ($(BUILD_LIBC_BOTTOM_HALF),yes)
-# Override basics' string.o with libc-bottom-half's.
-override LIBC_OBJS := $(filter-out %/string.o,$(LIBC_OBJS))
+# Override basics' string.c with libc-bottom-half's.
+#override LIBC_OBJS := $(filter-out %/string.c,$(LIBC_OBJS))
 # Add libc-bottom-half's objects.
 override LIBC_OBJS += $(LIBC_BOTTOM_HALF_ALL_OBJS)
 endif
 ifeq ($(BUILD_LIBC_TOP_HALF),yes)
-# Override libc-bottom-half's string.o with libc-top-half's.
-override LIBC_OBJS := $(filter-out %/string.o,$(LIBC_OBJS))
-# Override libc-bottom-half's qsort.o with libc-top-half's.
-override LIBC_OBJS := $(filter-out %/qsort.o,$(LIBC_OBJS))
+# Override libc-bottom-half's string.c with libc-top-half's.
+#override LIBC_OBJS := $(filter-out %/string.c,$(LIBC_OBJS))
+# Override libc-bottom-half's qsort.c with libc-top-half's.
+#override LIBC_OBJS := $(filter-out %/qsort.c,$(LIBC_OBJS))
 # libc-top-half is musl.
 override LIBC_OBJS += $(LIBC_TOP_HALF_ALL_OBJS)
 endif
 override MUSL_PRINTSCAN_OBJS = $(call objs,$(MUSL_PRINTSCAN_SOURCES))
-override MUSL_PRINTSCAN_LONG_DOUBLE_OBJS = $(patsubst %.o,%.long-double.o,$(MUSL_PRINTSCAN_OBJS))
-override MUSL_PRINTSCAN_NO_FLOATING_POINT_OBJS = $(patsubst %.o,%.no-floating-point.o,$(MUSL_PRINTSCAN_OBJS))
+override MUSL_PRINTSCAN_LONG_DOUBLE_OBJS = $(patsubst %.c,%.long-double.c,$(MUSL_PRINTSCAN_OBJS))
+override MUSL_PRINTSCAN_NO_FLOATING_POINT_OBJS = $(patsubst %.c,%.no-floating-point.c,$(MUSL_PRINTSCAN_OBJS))
 override LIBWASI_EMULATED_MMAN_OBJS = $(call objs,$(LIBWASI_EMULATED_MMAN_SOURCES))
 
 # Files from musl's include directory that we don't want to install in the
@@ -344,17 +345,17 @@ $(MUSL_PRINTSCAN_NO_FLOATING_POINT_OBJS): override WASM_CFLAGS += \
 	    -D__wasilibc_printscan_no_floating_point \
 	    -D__wasilibc_printscan_floating_point_support_option="\"remove -lc-printscan-no-floating-point from the link command\""
 
-$(OBJDIR)/%.long-double.o: $(CURDIR)/%.c include_dirs
+$(OBJDIR)/%.long-double.c: $(CURDIR)/%.c include_dirs
 	@mkdir -p "$(@D)"
-	"$(WASM_CC)" $(WASM_CFLAGS) -MD -MP -o $@ -c $<
+	"$(WASM_CC)" $(WASM_CFLAGS) -o $@ -E $<
 
-$(OBJDIR)/%.no-floating-point.o: $(CURDIR)/%.c include_dirs
+$(OBJDIR)/%.no-floating-point.c: $(CURDIR)/%.c include_dirs
 	@mkdir -p "$(@D)"
-	"$(WASM_CC)" $(WASM_CFLAGS) -MD -MP -o $@ -c $<
+	"$(WASM_CC)" $(WASM_CFLAGS) -o $@ -E $<
 
-$(OBJDIR)/%.o: $(CURDIR)/%.c include_dirs
+$(OBJDIR)/%.c: $(CURDIR)/%.c include_dirs
 	@mkdir -p "$(@D)"
-	"$(WASM_CC)" $(WASM_CFLAGS) -MD -MP -o $@ -c $<
+	"$(WASM_CC)" $(WASM_CFLAGS) -o $@ -E $<
 
 -include $(shell find $(OBJDIR) -name \*.d)
 
@@ -420,7 +421,7 @@ startup_files: include_dirs
 	cd "$(OBJDIR)" && \
 	"$(WASM_CC)" $(WASM_CFLAGS) -c $(CRT_SOURCES) -MD -MP && \
 	mkdir -p "$(SYSROOT_LIB)" && \
-	mv *.o "$(SYSROOT_LIB)"
+	mv *.c "$(SYSROOT_LIB)"
 
 libc: include_dirs \
     $(SYSROOT_LIB)/libc.a \
@@ -446,9 +447,9 @@ finish: startup_files libc
 	# LLVM PR40497, which is fixed in 9.0, but not in 8.0.
 	# Ignore certain llvm builtin symbols such as those starting with __mul
 	# since these dependencies can vary between llvm versions.
-	"$(WASM_NM)" --defined-only "$(SYSROOT_LIB)"/libc.a "$(SYSROOT_LIB)"/*.o \
+	"$(WASM_NM)" --defined-only "$(SYSROOT_LIB)"/libc.a "$(SYSROOT_LIB)"/*.c \
 	    |grep ' [[:upper:]] ' |sed 's/.* [[:upper:]] //' |LC_ALL=C sort > "$(SYSROOT_SHARE)/defined-symbols.txt"
-	for undef_sym in $$("$(WASM_NM)" --undefined-only "$(SYSROOT_LIB)"/*.a "$(SYSROOT_LIB)"/*.o \
+	for undef_sym in $$("$(WASM_NM)" --undefined-only "$(SYSROOT_LIB)"/*.a "$(SYSROOT_LIB)"/*.c \
 	    |grep ' U ' |sed 's/.* U //' |LC_ALL=C sort |uniq); do \
 	    grep -q '\<'$$undef_sym'\>' "$(SYSROOT_SHARE)/defined-symbols.txt" || echo $$undef_sym; \
 	done | grep -v "^__mul" > "$(SYSROOT_SHARE)/undefined-symbols.txt"

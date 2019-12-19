@@ -1,6 +1,9 @@
 #include <wasi/api.h>
 #include <errno.h>
 
+#define __NEED_off_t
+#include <bits/alltypes.h>
+
 off_t __wasilibc_tell(int fildes) {
     __wasi_filesize_t offset;
     __wasi_errno_t error = __wasi_fd_tell(fildes, &offset);
